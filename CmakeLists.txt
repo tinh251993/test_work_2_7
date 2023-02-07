@@ -1,0 +1,18 @@
+cmake_minimum_required(VERSION 3.15)
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++11 -pthread")
+
+project(test_work)
+
+add_executable(
+	test
+	main.cpp
+	mul.h
+    mul.cpp
+	factory.h
+    factory.cpp
+    sum.h
+    sum.cpp
+    sumExt.h
+    sumExt.cpp
+)
