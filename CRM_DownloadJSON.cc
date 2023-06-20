@@ -21,6 +21,7 @@
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "chrome/browser/CRM_DownloadJSON.h"
+#include "ui/base/buildflags.h"
 
 static const size_t kMaxDownloadSize = 30 * 1024;
 
@@ -31,7 +32,7 @@ CRMC_DownloadJSON::~CRMC_DownloadJSON() {}
 void CRMC_DownloadJSON::SetUp() {
   setup_called_ = true;
   LoadDataAsList(GURL("https://api.dones.ai/version/version.json"),
-                   "current_version");
+                   "nothing");
 }
 
 CRMC_DownloadJSON* CRMC_DownloadJSON::GetInstance() {
@@ -132,18 +133,34 @@ void CRMC_DownloadJSON::ParseListJSON(
   if (!response_body)
     return;
   absl::optional<base::Value> data = base::JSONReader::Read(*response_body);
-  if (data == absl::nullopt || !data->is_dict())
+  if (data == absl::nullopt || !data->is_dict() || key.empty())
     return;
 
+  std::string* raw_result;
+  std::string* raw_url_result;
 
-  std::string* raw_result = data->GetDict().FindString(key);
+  #if BUILDFLAG(IS_MAC)
+    raw_result = data->GetDict().FindString("current_version_mac");
+  #endif
+  
+  #if BUILDFLAG(IS_WIN)
+    raw_result = data->GetDict().FindString("current_version_mac");
+  #endif
+
+
   if ((*raw_result).empty()) {
     return;
   }
   CRMC_DownloadJSON::GetInstance()->SetListClassVariable(*raw_result, key);
 
+  #if BUILDFLAG(IS_MAC)
+    raw_url_result = data->GetDict().FindString("download_url_mac");
+  #endif
 
-  std::string* raw_url_result = data->GetDict().FindString("download_url");
+  #if BUILDFLAG(IS_WIN)
+    raw_url_result = data->GetDict().FindString("download_url_win");
+  #endif
+
   if ((*raw_url_result).empty()) {
     return;
   }
