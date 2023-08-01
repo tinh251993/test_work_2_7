@@ -19,6 +19,16 @@
 #include "content/public/common/javascript_dialog_type.h"
 #include "chrome/browser/file_select_helper.h"
 #include "ipc/ipc_listener.h"
+#include "chrome/browser/ui/views/side_panel/side_panel.h"
+#include "chrome/browser/ui/views/side_panel/side_panel_coordinator.h"
+
+#include "chrome/browser/CRM_BrowserWebDataManager.h"
+
+#if BUILDFLAG(IS_WIN)
+// windows.h must be included before shellapi.h
+#include <windows.h>
+#include <shellapi.h>
+#endif
 
 class BrowserView;
 class Browser;
@@ -78,6 +88,14 @@ public:
     void RequestReload();
 
     void ShowRequestReload();
+
+    void OpenNewTab();
+
+    bool OpenRunableFile(GURL url);
+    
+    bool OpenRunableFile(std::string p_url);
+
+    void showBookmark(bool can_open);
 private:
     bool is_check_for_update = false;
     friend class CRMC_RegisterExtJS;
@@ -86,6 +104,7 @@ private:
     Browser* m_pc_Browser;
     bool is_initialize = true;
     raw_ptr<views::WebView> webview_;
+    bool is_check = true;
 };
 
 

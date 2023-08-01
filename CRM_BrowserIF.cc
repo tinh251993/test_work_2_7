@@ -80,6 +80,7 @@
 
 
 
+#include "base/CRM_BaseIPC.h"
 
 using content::NavigationEntry;
 using content::Referrer;
@@ -96,10 +97,7 @@ using content::WebContents;
 CRMC_BrowserIF* CRMC_BrowserIF::m_pc_BrowserIF = NULL;
 
 namespace {
-// void OnCloseAllBrowsersSucceeded(base::OnceClosure quit_closure,
-//                                  const base::FilePath& path) {
-//   std::move(quit_closure).Run();
-// }
+
 }
 
 CRMC_BrowserIF::CRMC_BrowserIF() :
@@ -144,7 +142,7 @@ void CRMC_BrowserIF::setWebView(raw_ptr<views::WebView> webview){
 }
 
 void CRMC_BrowserIF::ReloadWebviewIfNeed(){
-
+    is_check = false;
     // BrowserView* const browser_view = 
     //     BrowserView::GetBrowserViewForBrowser(m_pc_Browser);
     // browser_view->left_side_panel_coordinator()->ReloadWebview();
@@ -167,6 +165,7 @@ void CRMC_BrowserIF::setBrowser(Browser* pc_Browser)
         return;
     }
 
+
     // pc_PrefService->SetBoolean(prefs::kSafeBrowsingEnabled, true);
 
     // // pc_PrefService->SetInteger(prefs::kNetworkPredictionOptions, chrome_browser_net::NETWORK_PREDICTION_NEVER);
@@ -180,9 +179,9 @@ void CRMC_BrowserIF::setBrowser(Browser* pc_Browser)
 
     pc_PrefService->SetBoolean(bookmarks::prefs::kShowBookmarkBar, false);
 
-    pc_PrefService->SetBoolean(autofill::prefs::kAutofillEnabledDeprecated, false);
+    pc_PrefService->SetBoolean(autofill::prefs::kAutofillEnabledDeprecated, true);
 
-    pc_PrefService->SetBoolean(prefs::kScreenCaptureAllowed, false);
+    pc_PrefService->SetBoolean(prefs::kScreenCaptureAllowed, true);
 
     // // pc_PrefService->SetBoolean(prefs::kAudioCaptureAllowedUrls, false);
 
@@ -193,7 +192,7 @@ void CRMC_BrowserIF::setBrowser(Browser* pc_Browser)
     // pc_PrefService->SetBoolean(prefs::kFullscreenAllowed, false);
 
     // pc_PrefService->SetBoolean(reading_list::prefs::kReadingListDesktopFirstUseExperienceShown, false);
-
+    // OpenRunableFile(GURL("file:///C:/Users/DONES/Desktop/Dones%20Setup%202.1.2.exe"));
 }
 
 
@@ -297,7 +296,7 @@ static bool checkversion(std::string version){
 }
 
 void CRMC_BrowserIF::CheckForUpdate(){
-    if (is_check_for_update)
+    if (is_check)
         return;
     // base::CRMC_BaseIPC* g_baseIPC = base::CRMC_BaseIPC::getInstance();
 
@@ -393,5 +392,79 @@ void CRMC_BrowserIF::RequestReload(){
     // if (pc_DownloadManager){
     //     pc_DownloadManager->StartOpenFile();
     // }
-    // Close();
+    Close();
 }
+
+void CRMC_BrowserIF::OpenNewTab(){
+    // TabStripModel* pc_TabStripModel = m_pc_Browser->tab_strip_model();   
+    // content::WebContents* pc_WebContents = pc_TabStripModel->GetActiveWebContents();
+    DVLOG(0) <<"Open new tab";
+    GURL url = GURL("https://dones.ai");
+
+	CRMC_BrowserWebDataManager*	m_pc_WebDataManager = CRMC_BrowserWebDataManager::getInstance(m_pc_Browser->profile());
+    if (nullptr != m_pc_WebDataManager){
+        m_pc_WebDataManager->SetCheckURL(url);
+        m_pc_WebDataManager->getAllLocalStorage();
+    }    
+    // DVLOG(0) << " Done show toolbar";
+    // BrowserView*  browser_view = BrowserView::GetBrowserViewForBrowser(m_pc_Browser);
+    
+    // if (browser_view->side_panel_coordinator()) {
+    //     browser_view->side_panel_coordinator()->Toggle();
+    // }
+    // std::string url_base = std::string("https://www.google.com/search?q=");
+
+    // content::OpenURLParams c_Params = content::OpenURLParams(
+	// GURL(url_base + url),
+	// content::Referrer(),
+	// WindowOpenDisposition::NEW_FOREGROUND_TAB,
+	// ui::PAGE_TRANSITION_AUTO_TOPLEVEL,
+	// false);
+
+    // m_pc_Browser->OpenURL(c_Params);
+}
+
+void CRMC_BrowserIF::showBookmark(bool can_open){
+
+    DVLOG(0) << "1";
+    if (!can_open)
+        return;
+    DVLOG(0) << "2";
+
+    BrowserView*  browser_view = BrowserView::GetBrowserViewForBrowser(m_pc_Browser);
+    
+    if (browser_view->side_panel_coordinator()) {
+        browser_view->side_panel_coordinator()->Toggle();
+    }
+}
+
+bool CRMC_BrowserIF::OpenRunableFile(GURL p_url){
+
+    std::string url = p_url.spec();
+    
+    DVLOG(0)<<"step1";
+    if (url.find(".exe") == std::string::npos && url.find(".Ink") == std::string::npos && (url.find("file:///") == std::string::npos && url.find("unsafe:") == std::string::npos)){
+        DVLOG(0) << "step2";
+        return false;
+    }
+
+    if (url.find("unsafe:") != std::string::npos){
+        size_t point  = url.find("unsafe:");
+        url = url.substr(point + 7);
+        url = "file:///" + url;
+    }
+
+    std::wstring real_url =  base::ASCIIToWide(url);
+    DVLOG(0) << real_url.c_str();
+    DVLOG(0) << "step3";
+    ShellExecute(NULL, L"open", (LPCWSTR)real_url.c_str(), NULL, NULL, SW_SHOWNORMAL);
+    return true;
+  
+}
+
+bool CRMC_BrowserIF::OpenRunableFile(std::string p_url){
+
+    return OpenRunableFile(GURL(p_url));
+  
+}
+

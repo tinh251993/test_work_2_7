@@ -57,6 +57,19 @@ CRMC_DownloadManager* CRMC_DownloadManager::getInstance() {
 }
 
 
+void CRMC_DownloadManager::Init(){
+	download_manager = m_pc_Browser->profile()->GetDownloadManager();
+	download_manager->AddObserver(this);
+
+	std::vector<download::DownloadItem*> downloads;
+	download_manager->GetAllDownloads(&downloads);
+
+	for (std::vector<download::DownloadItem*>::iterator it = downloads.begin();
+       it != downloads.end(); ++it) {
+    	OnDownloadCreated(download_manager, *it);
+  	}
+}
+
 void CRMC_DownloadManager::StartDownload(Browser* pc_Browser, std::string url){
 
     if (NULL == pc_Browser){
@@ -100,10 +113,11 @@ void CRMC_DownloadManager::StartDownload(Browser* pc_Browser, std::string url){
 		fprintf(stderr, "CRMC_DownloadManager::StartDownload() pc_RenderFrameHost is NULL!\n");
 		return ;
 	}
-
+	m_c_Url = url;
     m_pc_Browser = pc_Browser;
+	Init();
 
-	DownloadManager* download_manager = m_pc_Browser->profile()->GetDownloadManager();
+	//DownloadManager* download_manager = m_pc_Browser->profile()->GetDownloadManager();
 	// std::unique_ptr<content::DownloadObserverTerminal> obs = std::make_unique<content::DownloadObserverTerminal>(
 	// 	download_manager, 1,
 	// 	content::CRMC_DownloadObserver::ON_DANGEROUS_DOWNLOAD_FAIL);
@@ -176,8 +190,8 @@ void CRMC_DownloadManager::StartDownload(Browser* pc_Browser, std::string url){
 			}
 		}			
 	}
-	m_c_Url = url;
-	CRMC_BrowserIF::getInstance()->ShowRequestReload();
+	
+	// CRMC_BrowserIF::getInstance()->ShowRequestReload();
 }	
 
 void CRMC_DownloadManager::StartOpenFile(){
@@ -202,7 +216,36 @@ void CRMC_DownloadManager::StartOpenFile(){
 	// m_c_Url = url;
 	// CRMC_BrowserIF::getInstance()->ShowRequestReload();
 }
+    // download::DownloadItem::Observer
+void CRMC_DownloadManager::OnDownloadUpdated(download::DownloadItem* download){
+	download::DownloadItem::DownloadState state =  download->GetState();
 
+	switch (state)
+	{
+		case download::DownloadItem::DownloadState::COMPLETE :
+			if(download->GetURL().spec().find(m_c_Url))
+				CRMC_BrowserIF::getInstance()->ShowRequestReload();
+			break;
+		
+		default:
+			break;
+	}
+}
+void CRMC_DownloadManager::OnDownloadDestroyed(download::DownloadItem* download){
+	DVLOG(0) << "Nothing1";
+}
+
+    // // DownloadManager::Observer
+void CRMC_DownloadManager::OnDownloadCreated(DownloadManager* manager,
+                         download::DownloadItem* item){
+	DVLOG(0) << "Nothing";
+	OnDownloadUpdated(item);
+	item->AddObserver(this);
+
+}
+void CRMC_DownloadManager::ManagerGoingDown(DownloadManager* manager){
+	DVLOG(0) << "Nothing2";
+} 
 
 void CRMC_DownloadManager::CancelDownload(Browser* pc_Browser) {
 	if(NULL == pc_Browser) {
@@ -220,88 +263,88 @@ void CRMC_DownloadManager::CancelDownload(Browser* pc_Browser) {
 	EndDownload(MOJO_RESULT_CANCELLED ,0);
 }
 
-void CRMC_DownloadManager::OnDownloadUpdated(int64_t sl_Datasize, uint32_t ui_ItemID, uint32_t ui_state) {
-	if( ( NULL == m_pc_Browser ) && ( 0 == m_ui_Maxsize ) ) {
-		return;
-	}
-	m_ui_ItemID = ui_ItemID;
+// void CRMC_DownloadManager::OnDownloadUpdated(int64_t sl_Datasize, uint32_t ui_ItemID, uint32_t ui_state) {
+// 	if( ( NULL == m_pc_Browser ) && ( 0 == m_ui_Maxsize ) ) {
+// 		return;
+// 	}
+// 	m_ui_ItemID = ui_ItemID;
 
-	if(download::DownloadItem::INTERRUPTED == ui_state) {
-		if(NULL == m_pc_Browser) {
-			fprintf(stderr, "CRMC_DownloadManager::OnDownloadUpdated() m_pc_Browser is NULL!\n");
-			return ;
-		}
-		//�_�E�����[�h�I������.
-		EndDownload(CRMD_DL_RESULT_CANCELED ,0);
-	}
+// 	if(download::DownloadItem::INTERRUPTED == ui_state) {
+// 		if(NULL == m_pc_Browser) {
+// 			fprintf(stderr, "CRMC_DownloadManager::OnDownloadUpdated() m_pc_Browser is NULL!\n");
+// 			return ;
+// 		}
+// 		//�_�E�����[�h�I������.
+// 		EndDownload(CRMD_DL_RESULT_CANCELED ,0);
+// 	}
 
-	if(m_ui_Maxsize < sl_Datasize) {
-		if(NULL == m_pc_Browser) {
-			fprintf(stderr, "CRMC_DownloadManager::OnDownloadUpdated() m_pc_Browser is NULL!\n");
-			return ;
-		}
+// 	if(m_ui_Maxsize < sl_Datasize) {
+// 		if(NULL == m_pc_Browser) {
+// 			fprintf(stderr, "CRMC_DownloadManager::OnDownloadUpdated() m_pc_Browser is NULL!\n");
+// 			return ;
+// 		}
 		
-		//�_�E�����[�h�I������.
-		EndDownload(CRMD_DL_RESULT_FILE_ERR ,0);
-	}
+// 		//�_�E�����[�h�I������.
+// 		EndDownload(CRMD_DL_RESULT_FILE_ERR ,0);
+// 	}
 
-	//CRMC_BrowserIF::getInstance()->notifyDownloadUpdated(sl_Datasize);
-}
+// 	//CRMC_BrowserIF::getInstance()->notifyDownloadUpdated(sl_Datasize);
+// }
 
-void CRMC_DownloadManager::DownloadFinished(download::DownloadInterruptReason e_DownloadInterruptReason, int32_t si_http_status_code) {
-	int32_t si_Result = CRMD_DL_RESULT_NON_ERR;
+// void CRMC_DownloadManager::DownloadFinished(download::DownloadInterruptReason e_DownloadInterruptReason, int32_t si_http_status_code) {
+// 	int32_t si_Result = CRMD_DL_RESULT_NON_ERR;
 
-	if( ( NULL == m_pc_Browser ) && ( 0 == m_ui_Maxsize ) ) {
-		// �����o�ϐ�������������Ă���ꍇ�́A���ł�SB�ɒʒm�ς݂Ɣ��f���ď����𔲂���.
-		if( NULL == m_pc_Browser ) {
-		}
-		if( 0 == m_ui_Maxsize ) {
-		}
-		return;
-	}
+// 	if( ( NULL == m_pc_Browser ) && ( 0 == m_ui_Maxsize ) ) {
+// 		// �����o�ϐ�������������Ă���ꍇ�́A���ł�SB�ɒʒm�ς݂Ɣ��f���ď����𔲂���.
+// 		if( NULL == m_pc_Browser ) {
+// 		}
+// 		if( 0 == m_ui_Maxsize ) {
+// 		}
+// 		return;
+// 	}
 
-	if( ((100 <= si_http_status_code)&&(200 > si_http_status_code)) ||	
-		((300 <= si_http_status_code)&&(304 > si_http_status_code)) ||	
-		((304 <  si_http_status_code)&&(400 > si_http_status_code)) ||
-		((400 <= si_http_status_code)&&(500 > si_http_status_code)) ||	
-		((500 <= si_http_status_code)&&(600 > si_http_status_code)))	
-	{
-		si_Result = CRMD_DL_RESULT_NETWORK_ERR;
-	}
+// 	if( ((100 <= si_http_status_code)&&(200 > si_http_status_code)) ||	
+// 		((300 <= si_http_status_code)&&(304 > si_http_status_code)) ||	
+// 		((304 <  si_http_status_code)&&(400 > si_http_status_code)) ||
+// 		((400 <= si_http_status_code)&&(500 > si_http_status_code)) ||	
+// 		((500 <= si_http_status_code)&&(600 > si_http_status_code)))	
+// 	{
+// 		si_Result = CRMD_DL_RESULT_NETWORK_ERR;
+// 	}
 	
-	//�t�@�C���n�G���[�`�F�b�N.
-	switch(e_DownloadInterruptReason) {
-		case download::DOWNLOAD_INTERRUPT_REASON_FILE_FAILED :
-		case download::DOWNLOAD_INTERRUPT_REASON_FILE_ACCESS_DENIED :
-		case download::DOWNLOAD_INTERRUPT_REASON_FILE_NO_SPACE :
-		case download::DOWNLOAD_INTERRUPT_REASON_FILE_NAME_TOO_LONG :
-		case download::DOWNLOAD_INTERRUPT_REASON_FILE_TOO_LARGE :
-		case download::DOWNLOAD_INTERRUPT_REASON_FILE_VIRUS_INFECTED :
-		case download::DOWNLOAD_INTERRUPT_REASON_FILE_TRANSIENT_ERROR :
-		case download::DOWNLOAD_INTERRUPT_REASON_FILE_BLOCKED :
-		case download::DOWNLOAD_INTERRUPT_REASON_FILE_SECURITY_CHECK_FAILED :
-		case download::DOWNLOAD_INTERRUPT_REASON_FILE_TOO_SHORT :
-		case download::DOWNLOAD_INTERRUPT_REASON_FILE_HASH_MISMATCH :
-			si_Result = CRMD_DL_RESULT_FILE_ERR;
-			break;
-		default:
-			break;
-	}
+// 	//�t�@�C���n�G���[�`�F�b�N.
+// 	switch(e_DownloadInterruptReason) {
+// 		case download::DOWNLOAD_INTERRUPT_REASON_FILE_FAILED :
+// 		case download::DOWNLOAD_INTERRUPT_REASON_FILE_ACCESS_DENIED :
+// 		case download::DOWNLOAD_INTERRUPT_REASON_FILE_NO_SPACE :
+// 		case download::DOWNLOAD_INTERRUPT_REASON_FILE_NAME_TOO_LONG :
+// 		case download::DOWNLOAD_INTERRUPT_REASON_FILE_TOO_LARGE :
+// 		case download::DOWNLOAD_INTERRUPT_REASON_FILE_VIRUS_INFECTED :
+// 		case download::DOWNLOAD_INTERRUPT_REASON_FILE_TRANSIENT_ERROR :
+// 		case download::DOWNLOAD_INTERRUPT_REASON_FILE_BLOCKED :
+// 		case download::DOWNLOAD_INTERRUPT_REASON_FILE_SECURITY_CHECK_FAILED :
+// 		case download::DOWNLOAD_INTERRUPT_REASON_FILE_TOO_SHORT :
+// 		case download::DOWNLOAD_INTERRUPT_REASON_FILE_HASH_MISMATCH :
+// 			si_Result = CRMD_DL_RESULT_FILE_ERR;
+// 			break;
+// 		default:
+// 			break;
+// 	}
 
-	if(NULL == m_pc_Browser) {
-		fprintf(stderr, "CRMC_DownloadManager::CancelDownload() pc_Browser is NULL!\n");
-		return ;
-	}
+// 	if(NULL == m_pc_Browser) {
+// 		fprintf(stderr, "CRMC_DownloadManager::CancelDownload() pc_Browser is NULL!\n");
+// 		return ;
+// 	}
 	
-	download::DownloadItem* pc_item = m_pc_Browser->profile()->GetDownloadManager()->GetDownload(m_ui_ItemID);
-	if(NULL != pc_item) {
-		pc_item->OpenDownload();
-	}
+// 	download::DownloadItem* pc_item = m_pc_Browser->profile()->GetDownloadManager()->GetDownload(m_ui_ItemID);
+// 	if(NULL != pc_item) {
+// 		pc_item->OpenDownload();
+// 	}
 
 
-	EndDownload(si_Result, si_http_status_code);
+// 	EndDownload(si_Result, si_http_status_code);
 	
-}
+// }
 
 void CRMC_DownloadManager::SetDownloadParam_Fixed( const std::string& c_Url, const std::string& c_HttpMethod, const std::string& c_FilePath, uint32_t ui_Datasize, uint32_t ui_DatasizeHi) {
 	
